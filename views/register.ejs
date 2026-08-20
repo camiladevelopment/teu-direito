@@ -1,0 +1,72 @@
+<%- include('partials/head', { title: 'Criar conta' }) %>
+<section class="auth-page">
+  <div class="container auth-layout">
+    <div class="auth-intro">
+      <span class="eyebrow eyebrow-light">Faça parte</span>
+      <h1>Uma conta, mais voz e transparência.</h1>
+      <ul>
+        <li><span>✓</span> Publique e acompanhe reclamações</li>
+        <li><span>✓</span> Apoie causas da sua comunidade</li>
+        <li><span>✓</span> Empresas e órgãos podem responder publicamente</li>
+      </ul>
+      <p>Já possui cadastro? <a href="/entrar">Entrar na conta →</a></p>
+    </div>
+    <div class="auth-card">
+      <h2>Criar conta gratuita</h2>
+      <p>Escolha como você participará da plataforma.</p>
+      <% if (errors.length) { %>
+        <div class="validation-box" role="alert"><ul><% errors.forEach((error) => { %><li><%= error %></li><% }) %></ul></div>
+      <% } %>
+      <form action="/cadastro" method="post" class="main-form">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <div class="account-type">
+          <label><input type="radio" name="account_type" value="WORKER" <%= values.account_type !== 'COMPANY' ? 'checked' : '' %>><span>👤<strong>Trabalhador ou cidadão</strong><small>Quero relatar e apoiar</small></span></label>
+          <label><input type="radio" name="account_type" value="COMPANY" <%= values.account_type === 'COMPANY' ? 'checked' : '' %>><span>🏢<strong>Empresa ou órgão</strong><small>Quero responder relatos</small></span></label>
+        </div>
+        <div class="field">
+          <label for="register-name">Seu nome</label>
+          <input id="register-name" name="name" required minlength="3" maxlength="100" autocomplete="name" value="<%= values.name || '' %>">
+        </div>
+        <div class="field">
+          <label for="register-email">E-mail de acesso</label>
+          <input id="register-email" type="email" name="email" required autocomplete="email" value="<%= values.email || '' %>">
+        </div>
+        <div class="field">
+          <label for="register-password">Senha</label>
+          <input id="register-password" type="password" name="password" required minlength="8" autocomplete="new-password">
+          <small>Mínimo de 8 caracteres, com letra e número.</small>
+        </div>
+        <fieldset class="company-fields" data-company-fields>
+          <legend>Dados públicos da empresa ou órgão</legend>
+          <div class="field">
+            <label for="company-name">Nome da entidade</label>
+            <input id="company-name" name="company_name" maxlength="150" value="<%= values.company_name || '' %>">
+          </div>
+          <div class="field">
+            <label for="register-city">Município</label>
+            <select id="register-city" name="municipality_id">
+              <option value="">Selecione</option>
+              <% municipalities.forEach((municipality) => { %>
+                <option value="<%= municipality.id %>" <%= Number(values.municipality_id) === municipality.id ? 'selected' : '' %>><%= municipality.name %>/<%= municipality.state %></option>
+              <% }) %>
+            </select>
+          </div>
+          <div class="form-row">
+            <div class="field">
+              <label for="contact-email">E-mail público</label>
+              <input id="contact-email" type="email" name="contact_email" value="<%= values.contact_email || '' %>">
+            </div>
+            <div class="field">
+              <label for="whatsapp">WhatsApp público</label>
+              <input id="whatsapp" name="whatsapp" inputmode="tel" value="<%= values.whatsapp || '' %>" placeholder="5511999999999">
+            </div>
+          </div>
+          <small>Informe ao menos um contato para comunicações de causas com 50 apoios.</small>
+        </fieldset>
+        <button class="button button-primary button-large button-block" type="submit">Criar minha conta</button>
+        <p class="form-terms">Ao se cadastrar, você concorda em publicar somente informações verdadeiras e respeitar a privacidade de terceiros.</p>
+      </form>
+    </div>
+  </div>
+</section>
+<%- include('partials/footer') %>

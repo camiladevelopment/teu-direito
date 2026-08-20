@@ -1,0 +1,60 @@
+<%- include('partials/head', { title: 'Reclamações públicas' }) %>
+<section class="page-header">
+  <div class="container">
+    <span class="eyebrow">Relatos da comunidade</span>
+    <div class="title-action">
+      <div><h1>Reclamações públicas</h1><p>Encontre problemas por assunto, local, categoria ou entidade envolvida.</p></div>
+      <% if (!currentUser || currentUser.role === 'WORKER') { %>
+        <a class="button button-primary" href="<%= currentUser ? '/reclamacoes/nova' : '/cadastro' %>">+ Relatar problema</a>
+      <% } %>
+    </div>
+    <form class="filter-panel" action="/reclamacoes" method="get">
+      <div class="filter-grow">
+        <label for="complaint-q">Assunto, palavra-chave ou entidade</label>
+        <input id="complaint-q" name="q" value="<%= filters.query %>" placeholder="O que você procura?">
+      </div>
+      <div>
+        <label for="complaint-city">Município</label>
+        <select id="complaint-city" name="municipio">
+          <option value="">Todos</option>
+          <% municipalities.forEach((municipality) => { %>
+            <option value="<%= municipality.id %>" <%= filters.municipalityId === municipality.id ? 'selected' : '' %>><%= municipality.name %>/<%= municipality.state %></option>
+          <% }) %>
+        </select>
+      </div>
+      <div>
+        <label for="complaint-category">Categoria</label>
+        <select id="complaint-category" name="categoria">
+          <option value="">Todas</option>
+          <% categories.forEach((category) => { %>
+            <option value="<%= category.id %>" <%= filters.categoryId === category.id ? 'selected' : '' %>><%= category.name %></option>
+          <% }) %>
+        </select>
+      </div>
+      <div>
+        <label for="complaint-status">Status</label>
+        <select id="complaint-status" name="status">
+          <option value="">Todos</option>
+          <% Object.entries(statusLabels).forEach(([value, label]) => { %>
+            <option value="<%= value %>" <%= filters.status === value ? 'selected' : '' %>><%= label %></option>
+          <% }) %>
+        </select>
+      </div>
+      <button class="button button-dark" type="submit">Filtrar</button>
+    </form>
+  </div>
+</section>
+<section class="section">
+  <div class="container">
+    <div class="result-line"><strong><%= complaints.length %></strong> relato(s) encontrado(s)</div>
+    <% if (!complaints.length) { %>
+      <div class="empty-state"><span>⌕</span><h2>Nenhum relato encontrado</h2><p>Remova algum filtro ou seja a primeira pessoa a relatar este problema.</p></div>
+    <% } %>
+    <div class="cards-grid">
+      <% complaints.forEach((complaint) => { %>
+        <%- include('partials/complaint-card', { complaint }) %>
+      <% }) %>
+    </div>
+  </div>
+</section>
+<%- include('partials/footer') %>

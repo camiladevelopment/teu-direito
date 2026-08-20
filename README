@@ -1,1 +1,38 @@
-#TEUDIREITO
+# Teu Direito
+
+Plataforma pública para trabalhadores e cidadãos relatarem problemas, reunirem
+apoio e encontrarem orientações sobre direitos. O projeto não presta serviço
+jurídico e não substitui orientação profissional.
+
+## Executando localmente
+
+Requisitos: Node.js 20 ou superior.
+
+```sh
+npm install
+npm start
+```
+
+A aplicação fica disponível em `http://localhost:3000`. O banco SQLite é criado
+automaticamente em `data/teu-direito.db`, com schema, migrações e dados de
+demonstração. Para usar outro local, defina `DATABASE_PATH`.
+
+Contas de demonstração:
+
+* trabalhador: `trabalhador@demo.local` / `Demo@123`
+* empresa: `empresa@demo.local` / `Demo@123`
+* moderação: `moderacao@demo.local` / `Demo@123`
+
+Consulte `.env.example` para configurações opcionais. Sem SMTP ou integração de
+WhatsApp, notificações de causas com 50 apoios permanecem registradas na caixa
+de saída do banco, sem impedir a inicialização.
+
+## Principais fluxos
+
+* busca de empresas e reclamações por nome, assunto, município e categoria;
+* cadastro e autenticação de trabalhadores e representantes de empresas;
+* reclamações públicas envolvendo uma ou mais entidades;
+* resposta da empresa, réplica do autor e encerramento da reclamação;
+* apoio ou relato de que outra pessoa também está sendo afetada;
+* denúncia de conteúdo e painel de moderação;
+* artigos de “Seus Direitos” relacionados à categoria do problema.

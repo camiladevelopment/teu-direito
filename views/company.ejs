@@ -1,0 +1,52 @@
+<%- include('partials/head', { title: company.name }) %>
+<section class="company-profile">
+  <div class="container">
+    <a class="back-link" href="/empresas">← Todas as empresas e órgãos</a>
+    <div class="profile-row">
+      <div class="company-avatar company-avatar-large"><%= company.name.slice(0, 2).toUpperCase() %></div>
+      <div class="profile-copy">
+        <span class="eyebrow">Página pública da entidade</span>
+        <h1><%= company.name %></h1>
+        <p>📍 <%= company.municipality_name %>/<%= company.state %> · <%= company.description %></p>
+        <% if (company.email || company.whatsapp) { %>
+          <div class="public-contacts">
+            <% if (company.email) { %><a href="mailto:<%= company.email %>">✉ <%= company.email %></a><% } %>
+            <% if (company.whatsapp) { %><a href="https://wa.me/<%= company.whatsapp %>" target="_blank" rel="noopener noreferrer">◉ WhatsApp público</a><% } %>
+          </div>
+        <% } %>
+      </div>
+      <div class="profile-stat"><strong><%= company.complaint_count %></strong><span>reclamações</span></div>
+    </div>
+  </div>
+</section>
+<section class="section">
+  <div class="container">
+    <div class="section-heading align-end">
+      <div><span class="eyebrow">Transparência</span><h2>Histórico de reclamações</h2></div>
+      <form class="inline-filters" method="get">
+        <select aria-label="Filtrar por município" name="municipio">
+          <option value="">Todos os municípios</option>
+          <% municipalities.forEach((municipality) => { %>
+            <option value="<%= municipality.id %>" <%= selectedMunicipality === municipality.id ? 'selected' : '' %>><%= municipality.name %></option>
+          <% }) %>
+        </select>
+        <select aria-label="Filtrar por categoria" name="categoria">
+          <option value="">Todas as categorias</option>
+          <% categories.forEach((category) => { %>
+            <option value="<%= category.id %>" <%= selectedCategory === category.id ? 'selected' : '' %>><%= category.name %></option>
+          <% }) %>
+        </select>
+        <button class="button button-dark button-small" type="submit">Filtrar</button>
+      </form>
+    </div>
+    <% if (!complaints.length) { %>
+      <div class="empty-state"><span>✓</span><h2>Nenhuma reclamação neste filtro</h2><p>Não há relatos públicos que correspondam aos critérios.</p></div>
+    <% } %>
+    <div class="cards-grid">
+      <% complaints.forEach((complaint) => { %>
+        <%- include('partials/complaint-card', { complaint }) %>
+      <% }) %>
+    </div>
+  </div>
+</section>
+<%- include('partials/footer') %>

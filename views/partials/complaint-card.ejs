@@ -1,0 +1,15 @@
+<article class="complaint-card">
+  <div class="card-topline">
+    <span class="category"><%= complaint.category_icon || '📌' %> <%= complaint.category_name %></span>
+    <span class="status status-<%= complaint.status.toLowerCase() %>"><%= statusLabels[complaint.status] %></span>
+  </div>
+  <h3><a href="/reclamacoes/<%= complaint.id %>"><%= complaint.title %></a></h3>
+  <% if (complaint.company_names) { %>
+    <p class="company-line"><span aria-hidden="true">🏢</span> <%= complaint.company_names %></p>
+  <% } %>
+  <div class="card-meta">
+    <span>📍 <%= complaint.municipality_name %><%= complaint.state ? `/${complaint.state}` : '' %></span>
+    <span>♡ <%= complaint.support_count || 0 %> apoios</span>
+    <span><%= formatDate(complaint.created_at) %></span>
+  </div>
+</article>

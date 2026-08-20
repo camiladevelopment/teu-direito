@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Teu Direito: informação, relatos públicos e apoio para trabalhadores e cidadãos.">
+  <title><%= typeof title !== 'undefined' ? `${title} · Teu Direito` : 'Teu Direito · Sua voz transforma' %></title>
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
+  <header class="site-header">
+    <div class="container header-row">
+      <a class="brand" href="/" aria-label="Teu Direito, início">
+        <span class="brand-mark">TD</span>
+        <span>Teu <strong>Direito</strong></span>
+      </a>
+      <button class="menu-button" type="button" aria-expanded="false" aria-controls="main-nav">
+        <span class="sr-only">Abrir menu</span>
+        <span></span><span></span><span></span>
+      </button>
+      <nav class="main-nav" id="main-nav" aria-label="Navegação principal">
+        <a class="<%= currentPath === '/reclamacoes' ? 'active' : '' %>" href="/reclamacoes">Reclamações</a>
+        <a class="<%= currentPath.startsWith('/empresas') ? 'active' : '' %>" href="/empresas">Empresas e órgãos</a>
+        <a class="<%= currentPath === '/direitos' ? 'active' : '' %>" href="/direitos">Seus Direitos</a>
+        <% if (currentUser) { %>
+          <a class="<%= currentPath === '/minha-area' ? 'active' : '' %>" href="/minha-area">Minha área</a>
+          <% if (currentUser.role === 'MODERATOR') { %>
+            <a href="/moderacao">Moderação</a>
+          <% } %>
+          <form action="/sair" method="post" class="nav-form">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <button class="link-button" type="submit">Sair</button>
+          </form>
+        <% } else { %>
+          <a href="/entrar">Entrar</a>
+          <a class="button button-small" href="/cadastro">Criar conta</a>
+        <% } %>
+      </nav>
+    </div>
+  </header>
+  <% if (flash) { %>
+    <div class="flash flash-<%= flash.type %>" role="status">
+      <div class="container"><%= flash.message %></div>
+    </div>
+  <% } %>
+  <main id="conteudo">

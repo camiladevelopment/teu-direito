@@ -1,0 +1,73 @@
+<%- include('partials/head', { title: 'Relatar um problema' }) %>
+<section class="form-page">
+  <div class="container form-container">
+    <a class="back-link" href="/reclamacoes">← Voltar para reclamações</a>
+    <div class="form-heading">
+      <span class="eyebrow">Sua experiência importa</span>
+      <h1>Relate um problema</h1>
+      <p>Comece pelo que aconteceu. Você poderá acompanhar respostas e publicar uma réplica.</p>
+    </div>
+    <% if (errors.length) { %>
+      <div class="validation-box" role="alert">
+        <strong>Revise os dados:</strong>
+        <ul><% errors.forEach((error) => { %><li><%= error %></li><% }) %></ul>
+      </div>
+    <% } %>
+    <form action="/reclamacoes" method="post" class="main-form">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <fieldset>
+        <legend><span>1</span> O que aconteceu?</legend>
+        <div class="field">
+          <label for="title">Título do relato</label>
+          <input id="title" name="title" required minlength="8" maxlength="140" value="<%= values.title || '' %>" placeholder="Resuma o problema de forma objetiva">
+          <small>Não inclua dados pessoais no título.</small>
+        </div>
+        <div class="field">
+          <label for="description">Descrição do problema</label>
+          <textarea id="description" name="description" required minlength="30" maxlength="5000" rows="8" data-counter="description-count" placeholder="Conte quando começou, como você foi afetado e quais providências já tentou."><%= values.description || '' %></textarea>
+          <small id="description-count">Até 5.000 caracteres. Evite CPF, telefone, endereço ou outros dados sensíveis.</small>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend><span>2</span> Onde e sobre qual assunto?</legend>
+        <div class="form-row">
+          <div class="field">
+            <label for="municipality">Município</label>
+            <select id="municipality" name="municipality_id" required>
+              <option value="">Selecione</option>
+              <% municipalities.forEach((municipality) => { %>
+                <option value="<%= municipality.id %>" <%= Number(values.municipality_id) === municipality.id ? 'selected' : '' %>><%= municipality.name %>/<%= municipality.state %></option>
+              <% }) %>
+            </select>
+          </div>
+          <div class="field">
+            <label for="category">Categoria</label>
+            <select id="category" name="category_id" required>
+              <option value="">Selecione</option>
+              <% categories.forEach((category) => { %>
+                <option value="<%= category.id %>" <%= Number(values.category_id) === category.id ? 'selected' : '' %>><%= category.icon %> <%= category.name %></option>
+              <% }) %>
+            </select>
+          </div>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend><span>3</span> Quem está envolvido?</legend>
+        <p class="field-help">Selecione uma ou mais empresas, órgãos públicos ou entidades.</p>
+        <div class="entity-options">
+          <% companies.forEach((company) => { %>
+            <label class="entity-option">
+              <input type="checkbox" name="company_ids" value="<%= company.id %>" <%= [].concat(values.company_ids || []).map(Number).includes(company.id) ? 'checked' : '' %>>
+              <span class="company-avatar company-avatar-small"><%= company.name.slice(0, 2).toUpperCase() %></span>
+              <span><strong><%= company.name %></strong><small><%= company.municipality_name %>/<%= company.state %></small></span>
+            </label>
+          <% }) %>
+        </div>
+        <p class="field-help">Não encontrou a entidade? Por segurança, a equipe poderá ampliar o cadastro após receber seu relato.</p>
+      </fieldset>
+      <div class="privacy-note"><span>🛡️</span><p><strong>Antes de publicar</strong> Seu nome aparecerá como autor, mas seu e-mail nunca será exibido. Revise o texto e remova dados pessoais de terceiros.</p></div>
+      <button class="button button-primary button-large button-block" type="submit">Publicar reclamação →</button>
+    </form>
+  </div>
+</section>
+<%- include('partials/footer') %>
