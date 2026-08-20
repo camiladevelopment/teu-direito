@@ -32,11 +32,11 @@
         <legend><span>2</span> Onde e sobre qual assunto?</legend>
         <div class="form-row">
           <div class="field">
-            <label for="municipality">Município</label>
-            <select id="municipality" name="municipality_id" required>
+            <label for="state">Estado (UF)</label>
+            <select id="state" name="state" required data-state-selector>
               <option value="">Selecione</option>
-              <% municipalities.forEach((municipality) => { %>
-                <option value="<%= municipality.id %>" <%= Number(values.municipality_id) === municipality.id ? 'selected' : '' %>><%= municipality.name %>/<%= municipality.state %></option>
+              <% states.forEach((state) => { %>
+                <option value="<%= state.code %>" <%= values.state === state.code ? 'selected' : '' %>><%= state.name %> (<%= state.code %>)</option>
               <% }) %>
             </select>
           </div>
@@ -50,22 +50,28 @@
             </select>
           </div>
         </div>
+        <div class="field">
+          <label for="municipality">Município</label>
+          <input id="municipality" name="municipality_name" list="municipality-suggestions" required minlength="2" maxlength="120" value="<%= values.municipality_name || '' %>" placeholder="Primeiro selecione o estado" autocomplete="address-level2" disabled data-municipality-input>
+          <datalist id="municipality-suggestions"></datalist>
+          <small id="municipality-help" data-municipality-help>Selecione o estado para carregar todos os municípios brasileiros daquela UF.</small>
+        </div>
       </fieldset>
       <fieldset>
         <legend><span>3</span> Quem está envolvido?</legend>
-        <p class="field-help">Selecione uma ou mais empresas, órgãos públicos ou entidades.</p>
-        <div class="entity-options">
+        <p class="field-help">Escreva o nome correto da empresa, órgão público ou entidade responsável. Não é necessário selecionar opções.</p>
+        <div class="field">
+          <label for="entity-name">Nome da empresa, órgão ou entidade</label>
+          <input id="entity-name" name="entity_name" list="company-suggestions" required minlength="3" maxlength="150" value="<%= values.entity_name || '' %>" placeholder="Ex.: Empresa Exemplo Ltda. ou Prefeitura de ..." autocomplete="organization">
+          <datalist id="company-suggestions">
           <% companies.forEach((company) => { %>
-            <label class="entity-option">
-              <input type="checkbox" name="company_ids" value="<%= company.id %>" <%= [].concat(values.company_ids || []).map(Number).includes(company.id) ? 'checked' : '' %>>
-              <span class="company-avatar company-avatar-small"><%= company.name.slice(0, 2).toUpperCase() %></span>
-              <span><strong><%= company.name %></strong><small><%= company.municipality_name %>/<%= company.state %></small></span>
-            </label>
+            <option value="<%= company.name %>"><%= company.municipality_name %>/<%= company.state %></option>
           <% }) %>
+          </datalist>
+          <small>Use o nome oficial, sem apelidos, ofensas ou palavrões. Se ainda não estiver cadastrada, a entidade será incluída para receber o relato.</small>
         </div>
-        <p class="field-help">Não encontrou a entidade? Por segurança, a equipe poderá ampliar o cadastro após receber seu relato.</p>
       </fieldset>
-      <div class="privacy-note"><span>🛡️</span><p><strong>Antes de publicar</strong> Seu nome aparecerá como autor, mas seu e-mail nunca será exibido. Revise o texto e remova dados pessoais de terceiros.</p></div>
+      <div class="privacy-note"><span>🛡️</span><p><strong>Antes de publicar</strong> Seu nome aparecerá como autor, mas seu e-mail nunca será exibido. Revise o texto, remova dados pessoais de terceiros e mantenha uma linguagem respeitosa.</p></div>
       <button class="button button-primary button-large button-block" type="submit">Publicar reclamação →</button>
     </form>
   </div>
