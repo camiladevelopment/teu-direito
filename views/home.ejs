@@ -2,17 +2,17 @@
 <section class="hero">
   <div class="container hero-grid">
     <div class="hero-copy">
-      <span class="eyebrow">Sua voz pode gerar mudança</span>
-      <h1>O problema começa com você.<br><em>A solução começa com todos.</em></h1>
-      <p>Relate o que está acontecendo, encontre pessoas na mesma situação e ajude a tornar o problema visível para quem pode responder.</p>
+      <span class="eyebrow">Reclamações trabalhistas públicas</span>
+      <h1>O canal de reclamações para trabalhadores.<br><em>Faça sua voz ser ouvida.</em></h1>
+      <p>Relate problemas do trabalho, acompanhe as respostas de empresas e órgãos e encontre pessoas que vivem situações semelhantes.</p>
       <div class="hero-actions">
-        <a class="button button-primary button-large" href="<%= currentUser?.role === 'WORKER' ? '/reclamacoes/nova' : currentUser ? '/minha-area' : '/cadastro' %>">Relatar um problema <span>→</span></a>
+        <a class="button button-primary button-large" href="<%= currentUser?.role === 'WORKER' ? '/reclamacoes/nova' : currentUser ? '/minha-area' : '/cadastro' %>">Registrar uma reclamação <span>→</span></a>
         <a class="text-link" href="/reclamacoes">Explorar relatos públicos</a>
       </div>
       <p class="trust-line"><span>✓ Gratuito</span><span>✓ Público</span><span>✓ Feito para pessoas</span></p>
     </div>
     <div class="hero-panel">
-      <span class="panel-label">Encontre problemas semelhantes</span>
+      <span class="panel-label">Encontre reclamações semelhantes</span>
       <h2>O que está acontecendo?</h2>
       <form action="/reclamacoes" method="get" class="hero-search">
         <label for="home-q">Assunto ou empresa</label>
