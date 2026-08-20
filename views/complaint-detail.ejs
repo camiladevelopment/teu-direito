@@ -1,0 +1,173 @@
+<%- include('partials/head', { title: complaint.title }) %>
+<section class="detail-header">
+  <div class="container detail-container">
+    <a class="back-link" href="/reclamacoes">← Voltar para reclamações</a>
+    <% if (complaint.hidden) { %>
+      <div class="validation-box"><strong>Conteúdo ocultado pela moderação.</strong> Visível apenas para autor e moderação.</div>
+    <% } %>
+    <div class="detail-topline">
+      <span class="category"><%= complaint.category_icon %> <%= complaint.category_name %></span>
+      <span class="status status-<%= complaint.status.toLowerCase() %>"><%= statusLabels[complaint.status] %></span>
+    </div>
+    <h1><%= complaint.title %></h1>
+    <div class="detail-meta">
+      <span>Por <strong><%= complaint.author_name %></strong></span>
+      <span>📍 <%= complaint.municipality_name %>/<%= complaint.state %></span>
+      <span>Publicado em <%= formatDate(complaint.created_at) %></span>
+    </div>
+  </div>
+</section>
+
+<section class="section detail-section">
+  <div class="container detail-layout">
+    <div class="detail-main">
+      <article class="content-card">
+        <span class="content-label">Relato</span>
+        <p class="complaint-text"><%= complaint.description %></p>
+        <div class="involved-list">
+          <strong>Entidades envolvidas</strong>
+          <% companies.forEach((company) => { %>
+            <a href="/empresas/<%= company.slug %>"><span class="company-avatar company-avatar-tiny"><%= company.name.slice(0, 2).toUpperCase() %></span><span><%= company.name %><small><%= company.municipality_name %>/<%= company.state %></small></span><b>→</b></a>
+          <% }) %>
+        </div>
+      </article>
+
+      <section id="respostas" class="conversation">
+        <div class="section-heading">
+          <div><span class="eyebrow">Diálogo público</span><h2>Respostas e réplicas</h2></div>
+          <span class="response-count"><%= responses.length %> resposta(s)</span>
+        </div>
+        <% if (!responses.length) { %>
+          <div class="waiting-card"><span>💬</span><div><h3>Aguardando resposta</h3><p>As entidades envolvidas ainda não publicaram uma posição.</p></div></div>
+        <% } %>
+        <% responses.forEach((response) => { %>
+          <article class="response-card">
+            <div class="response-heading">
+              <span class="company-avatar company-avatar-small"><%= response.company_name.slice(0, 2).toUpperCase() %></span>
+              <div><strong><a href="/empresas/<%= response.company_slug %>"><%= response.company_name %></a></strong><small>Resposta oficial · <%= formatDate(response.created_at) %></small></div>
+            </div>
+            <p><%= response.body %></p>
+          </article>
+          <% if (response.reply_id) { %>
+            <article class="reply-card">
+              <div class="response-heading">
+                <span class="person-avatar"><%= complaint.author_name.slice(0, 1).toUpperCase() %></span>
+                <div><strong><%= complaint.author_name %></strong><small>Réplica do autor · <%= formatDate(response.reply_created_at) %></small></div>
+              </div>
+              <p><%= response.reply_body %></p>
+            </article>
+          <% } else if (currentUser?.role === 'WORKER' && currentUser.id === complaint.author_id && !complaint.hidden) { %>
+            <form action="/reclamacoes/<%= complaint.id %>/replicas" method="post" class="reply-form">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <input type="hidden" name="response_id" value="<%= response.id %>">
+              <label for="reply-<%= response.id %>">Publicar réplica a <%= response.company_name %></label>
+              <textarea id="reply-<%= response.id %>" name="body" minlength="10" maxlength="5000" required placeholder="Comente a resposta ou informe se a solução funcionou."></textarea>
+              <button class="button button-dark button-small" type="submit">Publicar réplica</button>
+            </form>
+          <% } %>
+        <% }) %>
+      </section>
+
+      <% if (canRespondCompanies.length && !complaint.hidden) { %>
+        <section id="responder" class="content-card response-area">
+          <span class="eyebrow">Área da entidade</span>
+          <h2>Responder a esta reclamação</h2>
+          <p>A resposta ficará pública. Não exponha dados pessoais do autor ou de terceiros.</p>
+          <form action="/reclamacoes/<%= complaint.id %>/respostas" method="post" class="main-form compact-form">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <% if (canRespondCompanies.length === 1) { %>
+              <input type="hidden" name="company_id" value="<%= canRespondCompanies[0].id %>">
+              <p class="responding-as">Respondendo como <strong><%= canRespondCompanies[0].name %></strong></p>
+            <% } else { %>
+              <label for="respond-company">Responder em nome de</label>
+              <select id="respond-company" name="company_id" required>
+                <% canRespondCompanies.forEach((company) => { %><option value="<%= company.id %>"><%= company.name %></option><% }) %>
+              </select>
+            <% } %>
+            <label for="response-body">Resposta oficial</label>
+            <textarea id="response-body" name="body" minlength="20" maxlength="5000" required rows="6" placeholder="Explique a posição da entidade e quais providências serão tomadas."></textarea>
+            <button class="button button-primary" type="submit">Publicar resposta</button>
+          </form>
+        </section>
+      <% } %>
+
+      <section id="apoio" class="support-section">
+        <div class="support-heading">
+          <div class="support-icon">🤝</div>
+          <div><span class="eyebrow">Força coletiva</span><h2>Você também é afetado?</h2><p>Apoios ajudam a dimensionar o problema. Ao alcançar 50, os contatos públicos das entidades recebem uma comunicação.</p></div>
+        </div>
+        <div class="support-progress">
+          <div><strong><%= complaint.support_count %></strong> de 50 apoios para notificação</div>
+          <div class="progress-track"><span style="width: <%= Math.min(100, (complaint.support_count / 50) * 100) %>%"></span></div>
+          <small><%= complaint.affected_count || 0 %> pessoa(s) disseram estar diretamente afetadas</small>
+        </div>
+        <% if (currentUser?.role === 'WORKER' && currentUser.id !== complaint.author_id && !complaint.hidden) { %>
+          <form action="/reclamacoes/<%= complaint.id %>/apoiar" method="post" class="support-form">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <div class="support-choices">
+              <label><input type="radio" name="kind" value="AFFECTED" <%= support?.kind === 'AFFECTED' ? 'checked' : '' %> required><span><strong>Também estou sendo afetado</strong><small>O problema também acontece comigo</small></span></label>
+              <label><input type="radio" name="kind" value="SUPPORT" <%= support?.kind === 'SUPPORT' ? 'checked' : '' %> required><span><strong>Quero manifestar apoio</strong><small>A causa importa para mim</small></span></label>
+            </div>
+            <label for="support-story">Quer contar seu caso? <span>(opcional)</span></label>
+            <textarea id="support-story" name="story" maxlength="2000" rows="4" placeholder="Conte brevemente como este problema também afeta você."><%= support?.story || '' %></textarea>
+            <button class="button button-primary button-block" type="submit"><%= support ? 'Atualizar minha manifestação' : 'Registrar minha manifestação' %></button>
+          </form>
+        <% } else if (!currentUser) { %>
+          <a class="button button-primary button-block" href="/entrar?next=/reclamacoes/<%= complaint.id %>%23apoio">Entre para apoiar esta causa</a>
+        <% } %>
+        <% if (supportStories.length) { %>
+          <div class="community-stories">
+            <h3>Relatos de quem apoia</h3>
+            <% supportStories.forEach((item) => { %>
+              <article>
+                <div><strong><%= item.name %></strong><span><%= item.kind === 'AFFECTED' ? 'Também afetado' : 'Apoiador' %> · <%= formatDate(item.created_at) %></span></div>
+                <p><%= item.story %></p>
+              </article>
+            <% }) %>
+          </div>
+        <% } %>
+      </section>
+
+      <% if (currentUser && !complaint.hidden) { %>
+        <details id="denunciar" class="report-box">
+          <summary>Denunciar conteúdo inadequado</summary>
+          <form action="/reclamacoes/<%= complaint.id %>/denunciar" method="post">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <label for="report-reason">Explique o que viola as regras da comunidade</label>
+            <textarea id="report-reason" name="reason" minlength="10" maxlength="1000" required></textarea>
+            <button class="button button-outline button-small" type="submit">Enviar para moderação</button>
+          </form>
+        </details>
+      <% } %>
+    </div>
+
+    <aside class="detail-sidebar">
+      <div class="sidebar-card status-card">
+        <span class="status status-<%= complaint.status.toLowerCase() %>"><%= statusLabels[complaint.status] %></span>
+        <h2>Status da reclamação</h2>
+        <ol class="status-timeline">
+          <li class="done"><span>✓</span><div><strong>Publicada</strong><small><%= formatDate(complaint.created_at) %></small></div></li>
+          <li class="<%= complaint.status !== 'WAITING_REPLY' ? 'done' : '' %>"><span><%= complaint.status !== 'WAITING_REPLY' ? '✓' : '2' %></span><div><strong>Resposta</strong><small><%= complaint.status === 'WAITING_REPLY' ? 'Aguardando entidade' : 'Posição publicada' %></small></div></li>
+          <li class="<%= complaint.status === 'RESOLVED' ? 'done' : '' %>"><span><%= complaint.status === 'RESOLVED' ? '✓' : '3' %></span><div><strong>Resolvida</strong><small>Confirmada pelo autor</small></div></li>
+        </ol>
+        <% if (currentUser?.role === 'WORKER' && currentUser.id === complaint.author_id && complaint.status !== 'RESOLVED' && !complaint.hidden) { %>
+          <form action="/reclamacoes/<%= complaint.id %>/resolver" method="post">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <button class="button button-success button-block" type="submit">✓ Marcar como resolvida</button>
+          </form>
+        <% } %>
+      </div>
+      <% if (rights.length) { %>
+        <div class="sidebar-card rights-mini">
+          <span class="eyebrow">Seus Direitos</span>
+          <h2>Informação relacionada</h2>
+          <% rights.forEach((article) => { %>
+            <a href="/direitos?categoria=<%= complaint.category_id %>"><strong><%= article.title %></strong><span><%= article.summary %></span><b>Ler orientação →</b></a>
+          <% }) %>
+          <p>Conteúdo informativo. Não substitui orientação profissional.</p>
+        </div>
+      <% } %>
+    </aside>
+  </div>
+</section>
+<%- include('partials/footer') %>

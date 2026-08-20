@@ -1,0 +1,48 @@
+<%- include('partials/head', { title: 'Minha área' }) %>
+<section class="dashboard-header">
+  <div class="container">
+    <span class="eyebrow">Área pessoal</span>
+    <div class="title-action">
+      <div><h1>Olá, <%= currentUser.name.split(' ')[0] %>!</h1><p>
+        <% if (currentUser.role === 'WORKER') { %>Acompanhe seus relatos e as respostas recebidas.<% } %>
+        <% if (currentUser.role === 'COMPANY') { %>Responda com transparência às reclamações ligadas à sua entidade.<% } %>
+        <% if (currentUser.role === 'MODERATOR') { %>Acompanhe denúncias e mantenha a comunidade segura.<% } %>
+      </p></div>
+      <% if (currentUser.role === 'WORKER') { %><a class="button button-primary" href="/reclamacoes/nova">+ Novo relato</a><% } %>
+      <% if (currentUser.role === 'MODERATOR') { %><a class="button button-primary" href="/moderacao">Abrir moderação</a><% } %>
+    </div>
+  </div>
+</section>
+<section class="section">
+  <div class="container">
+    <% if (currentUser.role === 'COMPANY') { %>
+      <div class="company-summary-grid">
+        <% companyData.forEach((company) => { %>
+          <article class="company-card">
+            <div class="company-avatar"><%= company.name.slice(0, 2).toUpperCase() %></div>
+            <div class="company-card-body"><span class="eyebrow">Representando</span><h2><%= company.name %></h2><p>📍 <%= company.municipality_name %></p></div>
+            <a class="button button-outline" href="/empresas/<%= company.slug %>">Página pública</a>
+          </article>
+        <% }) %>
+      </div>
+      <div class="section-heading"><div><span class="eyebrow">Caixa de entrada</span><h2>Reclamações da sua entidade</h2></div></div>
+    <% } else if (currentUser.role === 'WORKER') { %>
+      <div class="section-heading"><div><span class="eyebrow">Seu histórico</span><h2>Minhas reclamações</h2></div></div>
+    <% } %>
+    <% if (['WORKER', 'COMPANY'].includes(currentUser.role) && !complaints.length) { %>
+      <div class="empty-state"><span>✍️</span><h2>Nenhuma reclamação por aqui</h2><p><%= currentUser.role === 'WORKER' ? 'Quando você publicar um relato, ele aparecerá aqui.' : 'Nenhuma reclamação pública foi vinculada à sua entidade.' %></p></div>
+    <% } %>
+    <% if (complaints.length) { %>
+      <div class="dashboard-list">
+        <% complaints.forEach((complaint) => { %>
+          <a href="/reclamacoes/<%= complaint.id %>" class="dashboard-item">
+            <span class="status status-<%= complaint.status.toLowerCase() %>"><%= statusLabels[complaint.status] %></span>
+            <div><h3><%= complaint.title %></h3><p><%= complaint.category_name %> · <%= complaint.municipality_name %> · <%= formatDate(complaint.created_at) %></p></div>
+            <span><%= complaint.support_count || 0 %> apoios</span><b>→</b>
+          </a>
+        <% }) %>
+      </div>
+    <% } %>
+  </div>
+</section>
+<%- include('partials/footer') %>

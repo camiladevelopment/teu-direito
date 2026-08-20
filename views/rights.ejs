@@ -1,0 +1,44 @@
+<%- include('partials/head', { title: 'Seus Direitos' }) %>
+<section class="rights-hero">
+  <div class="container rights-hero-grid">
+    <div>
+      <span class="eyebrow eyebrow-light">Informação para decidir</span>
+      <h1>Seus Direitos</h1>
+      <p>Orientações iniciais, órgãos responsáveis e caminhos possíveis para cada tipo de problema.</p>
+    </div>
+    <div class="rights-symbol" aria-hidden="true">⚖</div>
+  </div>
+</section>
+<section class="section">
+  <div class="container rights-layout">
+    <aside class="category-nav">
+      <h2>Filtrar por categoria</h2>
+      <a class="<%= !selectedCategory ? 'selected' : '' %>" href="/direitos">Todas as orientações</a>
+      <% categories.forEach((category) => { %>
+        <a class="<%= selectedCategory === category.id ? 'selected' : '' %>" href="/direitos?categoria=<%= category.id %>"><span><%= category.icon %></span><%= category.name %></a>
+      <% }) %>
+    </aside>
+    <div>
+      <div class="info-disclaimer"><span>ⓘ</span><p><strong>Informação, não consultoria.</strong> O conteúdo é geral, pode não contemplar seu caso e não substitui sindicato, órgão competente ou profissional habilitado.</p></div>
+      <% if (!articles.length) { %>
+        <div class="empty-state"><span>📚</span><h2>Orientação em preparação</h2><p>Ainda estamos organizando conteúdo para esta categoria.</p></div>
+      <% } %>
+      <div class="articles-list">
+        <% articles.forEach((article) => { %>
+          <article class="rights-article">
+            <span class="category"><%= article.category_icon %> <%= article.category_name %></span>
+            <h2><%= article.title %></h2>
+            <p class="article-summary"><%= article.summary %></p>
+            <div class="article-content"><%= article.content %></div>
+            <div class="guidance-grid">
+              <div><h3>🏛️ Quem pode orientar</h3><p><%= article.responsible_agencies %></p></div>
+              <div><h3>→ Próximos passos</h3><p><%= article.next_steps %></p></div>
+            </div>
+            <% if (article.source_url) { %><a class="text-link" href="<%= article.source_url %>" target="_blank" rel="noopener noreferrer">Consultar fonte oficial ↗</a><% } %>
+          </article>
+        <% }) %>
+      </div>
+    </div>
+  </div>
+</section>
+<%- include('partials/footer') %>

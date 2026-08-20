@@ -1,0 +1,48 @@
+<%- include('partials/head', { title: 'Moderação' }) %>
+<section class="dashboard-header">
+  <div class="container"><span class="eyebrow">Segurança da comunidade</span><h1>Painel de moderação</h1><p>Analise denúncias, oculte conteúdo inadequado e acompanhe comunicações.</p></div>
+</section>
+<section class="section">
+  <div class="container moderation-layout">
+    <div>
+      <div class="section-heading"><div><span class="eyebrow">Fila de análise</span><h2>Denúncias</h2></div><span class="response-count"><%= reports.filter((report) => report.status === 'OPEN').length %> abertas</span></div>
+      <% if (!reports.length) { %><div class="empty-state"><span>✓</span><h2>Nenhuma denúncia</h2><p>A fila de moderação está vazia.</p></div><% } %>
+      <div class="reports-list">
+        <% reports.forEach((report) => { %>
+          <article class="report-card">
+            <div class="card-topline">
+              <span class="status <%= report.status === 'OPEN' ? 'status-waiting_reply' : 'status-resolved' %>"><%= report.status === 'OPEN' ? 'Aguardando análise' : report.status === 'CONTENT_HIDDEN' ? 'Conteúdo ocultado' : 'Arquivada' %></span>
+              <span><%= formatDate(report.created_at) %></span>
+            </div>
+            <h3><a href="/reclamacoes/<%= report.complaint_id %>"><%= report.title %></a></h3>
+            <p><strong>Motivo informado por <%= report.reporter_name %>:</strong> <%= report.reason %></p>
+            <% if (report.status === 'OPEN') { %>
+              <div class="report-actions">
+                <a class="button button-outline button-small" href="/reclamacoes/<%= report.complaint_id %>">Revisar conteúdo</a>
+                <form action="/moderacao/denuncias/<%= report.id %>" method="post">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <button class="button button-small" name="action" value="dismiss" type="submit">Arquivar denúncia</button>
+                  <button class="button button-danger button-small" name="action" value="hide" type="submit">Ocultar conteúdo</button>
+                </form>
+              </div>
+            <% } else { %>
+              <small>Revisada por <%= report.reviewer_name %> em <%= formatDate(report.reviewed_at) %>.</small>
+            <% } %>
+          </article>
+        <% }) %>
+      </div>
+    </div>
+    <aside>
+      <div class="sidebar-card">
+        <span class="eyebrow">50 apoios</span><h2>Caixa de comunicações</h2>
+        <% if (!notifications.length) { %><p>Nenhuma causa atingiu o limite de comunicação.</p><% } %>
+        <div class="notification-list">
+          <% notifications.forEach((notification) => { %>
+            <div><span class="status <%= notification.status === 'SENT' ? 'status-resolved' : 'status-waiting_reply' %>"><%= notification.status %></span><strong><%= notification.company_name %></strong><small><%= notification.channel %> · <%= notification.destination %></small><a href="/reclamacoes/<%= notification.complaint_id %>"><%= notification.title %></a></div>
+          <% }) %>
+        </div>
+      </div>
+    </aside>
+  </div>
+</section>
+<%- include('partials/footer') %>
