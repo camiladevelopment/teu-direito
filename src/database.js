@@ -198,6 +198,21 @@ const migrations = [
       CREATE TRIGGER notifications_updated AFTER UPDATE ON notifications
       BEGIN UPDATE notifications SET updated_at = CURRENT_TIMESTAMP WHERE id = NEW.id; END;
     `
+  },
+  {
+    version: 2,
+    // Capitais são mantidas localmente como alternativa de consulta caso o
+    // serviço oficial de localidades esteja temporariamente indisponível.
+    sql: `
+      INSERT OR IGNORE INTO municipalities (name, state) VALUES
+        ('Rio Branco', 'AC'), ('Maceió', 'AL'), ('Macapá', 'AP'), ('Manaus', 'AM'),
+        ('Salvador', 'BA'), ('Fortaleza', 'CE'), ('Brasília', 'DF'), ('Vitória', 'ES'),
+        ('Goiânia', 'GO'), ('São Luís', 'MA'), ('Cuiabá', 'MT'), ('Campo Grande', 'MS'),
+        ('Belo Horizonte', 'MG'), ('Belém', 'PA'), ('João Pessoa', 'PB'), ('Curitiba', 'PR'),
+        ('Recife', 'PE'), ('Teresina', 'PI'), ('Rio de Janeiro', 'RJ'), ('Natal', 'RN'),
+        ('Porto Alegre', 'RS'), ('Porto Velho', 'RO'), ('Boa Vista', 'RR'), ('Florianópolis', 'SC'),
+        ('São Paulo', 'SP'), ('Aracaju', 'SE'), ('Palmas', 'TO');
+    `
   }
 ];
 
@@ -230,21 +245,29 @@ function slugify(value) {
 }
 
 function seed() {
-  const hasData = db.prepare('SELECT COUNT(*) AS total FROM municipalities').get().total > 0;
+  const hasData = db.prepare('SELECT 1 FROM users LIMIT 1').get();
   if (hasData) return;
 
   db.transaction(() => {
     const municipalityInsert = db.prepare(
-      'INSERT INTO municipalities (name, state) VALUES (?, ?)'
+      'INSERT OR IGNORE INTO municipalities (name, state) VALUES (?, ?)'
     );
     const municipalities = [
       ['São Paulo', 'SP'], ['Guarulhos', 'SP'], ['Campinas', 'SP'],
       ['Rio de Janeiro', 'RJ'], ['Belo Horizonte', 'MG'], ['Salvador', 'BA'],
-      ['Recife', 'PE'], ['Porto Alegre', 'RS'], ['Fortaleza', 'CE']
+      ['Recife', 'PE'], ['Porto Alegre', 'RS'], ['Fortaleza', 'CE'],
+      ['Rio Branco', 'AC'], ['Maceió', 'AL'], ['Macapá', 'AP'], ['Manaus', 'AM'],
+      ['Brasília', 'DF'], ['Vitória', 'ES'], ['Goiânia', 'GO'], ['São Luís', 'MA'],
+      ['Cuiabá', 'MT'], ['Campo Grande', 'MS'], ['Belém', 'PA'], ['João Pessoa', 'PB'],
+      ['Curitiba', 'PR'], ['Teresina', 'PI'], ['Natal', 'RN'], ['Porto Velho', 'RO'],
+      ['Boa Vista', 'RR'], ['Florianópolis', 'SC'], ['Aracaju', 'SE'], ['Palmas', 'TO']
     ];
     const municipalityIds = {};
     for (const [name, state] of municipalities) {
-      municipalityIds[name] = Number(municipalityInsert.run(name, state).lastInsertRowid);
+      municipalityInsert.run(name, state);
+      municipalityIds[name] = db.prepare(
+        'SELECT id FROM municipalities WHERE name = ? AND state = ?'
+      ).get(name, state).id;
     }
 
     const categoryInsert = db.prepare(

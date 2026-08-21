@@ -7,6 +7,7 @@ const bcrypt = require('bcryptjs');
 const { db, slugify } = require('./database');
 const { notifyThreshold } = require('./notification-service');
 const SQLiteSessionStore = require('./sqlite-session-store');
+const { brazilianStates, stateCodes, municipalitiesForState } = require('./locations-service');
 
 const app = express();
 const port = Number(process.env.PORT || 3000);
@@ -60,6 +61,41 @@ function safeNext(value) {
   return typeof value === 'string' && value.startsWith('/') && !value.startsWith('//')
     ? value
     : '/minha-area';
+}
+
+function normalizeText(value) {
+  return String(value || '').trim().replace(/\s+/g, ' ');
+}
+
+function containsInappropriateLanguage(value) {
+  const normalized = normalizeText(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+  return /\b(?:arrombado|babaca|bosta|cacete|carai|caralho|cuzao|desgracad[oa]|foda(?:-?se)?|fodase|foder|fdp|fudid[oa]|idiota|imbecil|merda|otari[oa]|piranha|porra|puta|putaria|puto|vagabund[oa])\b|\bfilh[oa]\s+d[ae]\s+puta\b/.test(normalized);
+}
+
+function respectfulTextError(...values) {
+  return values.some(containsInappropriateLanguage)
+    ? 'Não use palavrões ou ofensas. Descreva os fatos de forma respeitosa e objetiva.'
+    : null;
+}
+
+function validMunicipalityName(value) {
+  return value.length >= 2
+    && value.length <= 120
+    && /^[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ .'-]*$/u.test(value)
+    && /[A-Za-zÀ-ÿ]/u.test(value);
+}
+
+function findOrCreateMunicipality(name, state) {
+  const existing = db.prepare(
+    'SELECT id FROM municipalities WHERE name = ? COLLATE NOCASE AND state = ?'
+  ).get(name, state);
+  if (existing) return existing.id;
+  return Number(db.prepare(
+    'INSERT INTO municipalities (name, state) VALUES (?, ?)'
+  ).run(name, state).lastInsertRowid);
 }
 
 function requireAuth(req, res, next) {
@@ -118,7 +154,8 @@ app.use(csrfProtection);
 function referenceData() {
   return {
     municipalities: db.prepare('SELECT * FROM municipalities ORDER BY name').all(),
-    categories: db.prepare('SELECT * FROM categories ORDER BY name').all()
+    categories: db.prepare('SELECT * FROM categories ORDER BY name').all(),
+    states: brazilianStates
   };
 }
 
@@ -176,6 +213,25 @@ function uniqueCompanySlug(name) {
   }
   return candidate;
 }
+
+app.get('/api/municipios/:state', asyncRoute(async (req, res) => {
+  const state = String(req.params.state || '').toUpperCase();
+  if (!stateCodes.has(state)) return res.status(400).json({ error: 'UF inválida.' });
+  try {
+    const municipalities = await municipalitiesForState(state);
+    return res.json({ municipalities, source: 'ibge' });
+  } catch (error) {
+    // A plataforma continua utilizável em indisponibilidades externas e mantém
+    // as localidades que já foram usadas em relatos ou cadastros.
+    const municipalities = db.prepare(`
+      SELECT id AS code, name
+      FROM municipalities
+      WHERE state = ?
+      ORDER BY name
+    `).all(state);
+    return res.json({ municipalities, source: 'local' });
+  }
+}));
 
 app.get('/', (req, res) => {
   const complaints = listComplaints({ limit: 6 });
@@ -267,23 +323,21 @@ app.get('/reclamacoes/nova', requireAuth, requireRole('WORKER'), (req, res) => {
 });
 
 app.post('/reclamacoes', requireAuth, requireRole('WORKER'), (req, res) => {
-  const title = String(req.body.title || '').trim();
+  const title = normalizeText(req.body.title);
   const description = String(req.body.description || '').trim();
-  const municipalityId = Number(req.body.municipality_id);
+  const municipalityName = normalizeText(req.body.municipality_name);
+  const state = String(req.body.state || '').toUpperCase();
   const categoryId = Number(req.body.category_id);
-  const companyIds = [...new Set([]
-    .concat(req.body.company_ids || [])
-    .map(Number)
-    .filter(Number.isInteger))];
+  const entityName = normalizeText(req.body.entity_name);
   const errors = [];
   if (title.length < 8 || title.length > 140) errors.push('O título deve ter entre 8 e 140 caracteres.');
   if (description.length < 30 || description.length > 5000) errors.push('Descreva o problema usando entre 30 e 5.000 caracteres.');
-  if (!db.prepare('SELECT 1 FROM municipalities WHERE id = ?').get(municipalityId)) errors.push('Selecione um município válido.');
+  if (respectfulTextError(title, description)) errors.push(respectfulTextError(title, description));
+  if (!stateCodes.has(state)) errors.push('Selecione uma UF válida.');
+  if (!validMunicipalityName(municipalityName)) errors.push('Informe um município válido.');
   if (!db.prepare('SELECT 1 FROM categories WHERE id = ?').get(categoryId)) errors.push('Selecione uma categoria válida.');
-  const validCompanies = companyIds.length
-    ? db.prepare(`SELECT id FROM companies WHERE id IN (${companyIds.map(() => '?').join(',')})`).all(...companyIds)
-    : [];
-  if (!validCompanies.length || validCompanies.length !== companyIds.length) errors.push('Selecione ao menos uma empresa ou órgão válido.');
+  if (entityName.length < 3 || entityName.length > 150) errors.push('Informe o nome correto da empresa, órgão ou entidade.');
+  if (respectfulTextError(entityName)) errors.push(respectfulTextError(entityName));
 
   if (errors.length) {
     const companies = db.prepare(`
@@ -293,12 +347,27 @@ app.post('/reclamacoes', requireAuth, requireRole('WORKER'), (req, res) => {
     `).all();
     return res.status(422).render('new-complaint', {
       companies, errors,
-      values: { title, description, municipality_id: municipalityId, category_id: categoryId, company_ids: companyIds },
+      values: { title, description, municipality_name: municipalityName, state, category_id: categoryId, entity_name: entityName },
       ...referenceData()
     });
   }
 
   const complaintId = db.transaction(() => {
+    const municipalityId = findOrCreateMunicipality(municipalityName, state);
+    let company = db.prepare(`
+      SELECT id FROM companies
+      WHERE name = ? COLLATE NOCASE AND municipality_id = ?
+    `).get(entityName, municipalityId);
+    if (!company) {
+      const result = db.prepare(`
+        INSERT INTO companies (name, slug, municipality_id, description)
+        VALUES (?, ?, ?, ?)
+      `).run(
+        entityName, uniqueCompanySlug(entityName), municipalityId,
+        'Entidade informada em um relato e aguardando confirmação de representante.'
+      );
+      company = { id: Number(result.lastInsertRowid) };
+    }
     const result = db.prepare(`
       INSERT INTO complaints
         (author_id, municipality_id, category_id, title, description)
@@ -308,7 +377,7 @@ app.post('/reclamacoes', requireAuth, requireRole('WORKER'), (req, res) => {
     const link = db.prepare(
       'INSERT INTO complaint_companies (complaint_id, company_id) VALUES (?, ?)'
     );
-    for (const companyId of companyIds) link.run(id, companyId);
+    link.run(id, company.id);
     return id;
   })();
   setFlash(req, 'success', 'Seu relato foi publicado e já está visível para a comunidade.');
@@ -399,6 +468,10 @@ app.post('/reclamacoes/:id/respostas', requireAuth, requireRole('COMPANY'), (req
     setFlash(req, 'error', 'A resposta deve ter entre 20 e 5.000 caracteres.');
     return res.redirect(`/reclamacoes/${complaintId}#responder`);
   }
+  if (respectfulTextError(body)) {
+    setFlash(req, 'error', respectfulTextError(body));
+    return res.redirect(`/reclamacoes/${complaintId}#responder`);
+  }
   try {
     db.transaction(() => {
       db.prepare(`
@@ -435,6 +508,10 @@ app.post('/reclamacoes/:id/replicas', requireAuth, requireRole('WORKER'), (req, 
     setFlash(req, 'error', 'A réplica deve ter entre 10 e 5.000 caracteres.');
     return res.redirect(`/reclamacoes/${complaintId}#respostas`);
   }
+  if (respectfulTextError(body)) {
+    setFlash(req, 'error', respectfulTextError(body));
+    return res.redirect(`/reclamacoes/${complaintId}#respostas`);
+  }
   try {
     db.prepare('INSERT INTO replies (response_id, author_id, body) VALUES (?, ?, ?)')
       .run(responseId, req.session.user.id, body);
@@ -467,6 +544,10 @@ app.post('/reclamacoes/:id/apoiar', requireAuth, requireRole('WORKER'), asyncRou
     setFlash(req, 'error', 'Seu relato complementar deve ter até 2.000 caracteres.');
     return res.redirect(`/reclamacoes/${complaintId}#apoio`);
   }
+  if (respectfulTextError(story)) {
+    setFlash(req, 'error', respectfulTextError(story));
+    return res.redirect(`/reclamacoes/${complaintId}#apoio`);
+  }
   const complaint = db.prepare('SELECT id, author_id FROM complaints WHERE id = ? AND hidden = 0')
     .get(complaintId);
   if (!complaint) return next();
@@ -493,6 +574,10 @@ app.post('/reclamacoes/:id/denunciar', requireAuth, (req, res, next) => {
   if (!db.prepare('SELECT 1 FROM complaints WHERE id = ?').get(complaintId)) return next();
   if (reason.length < 10 || reason.length > 1000) {
     setFlash(req, 'error', 'Explique o motivo da denúncia usando entre 10 e 1.000 caracteres.');
+    return res.redirect(`/reclamacoes/${complaintId}#denunciar`);
+  }
+  if (respectfulTextError(reason)) {
+    setFlash(req, 'error', respectfulTextError(reason));
     return res.redirect(`/reclamacoes/${complaintId}#denunciar`);
   }
   try {
@@ -526,16 +611,17 @@ app.get('/cadastro', (req, res) => {
 });
 
 app.post('/cadastro', (req, res) => {
-  const name = String(req.body.name || '').trim();
+  const name = normalizeText(req.body.name);
   const email = String(req.body.email || '').trim().toLowerCase();
   const password = String(req.body.password || '');
   const accountType = req.body.account_type === 'COMPANY' ? 'COMPANY' : 'WORKER';
-  const companyName = String(req.body.company_name || '').trim();
+  const companyName = normalizeText(req.body.company_name);
   const municipalityId = Number(req.body.municipality_id);
   const contactEmail = String(req.body.contact_email || '').trim().toLowerCase();
   const whatsapp = String(req.body.whatsapp || '').replace(/\D/g, '');
   const errors = [];
   if (name.length < 3 || name.length > 100) errors.push('Informe seu nome com 3 a 100 caracteres.');
+  if (respectfulTextError(name)) errors.push(respectfulTextError(name));
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.push('Informe um e-mail válido.');
   if (password.length < 8 || !/[A-Za-z]/.test(password) || !/\d/.test(password)) {
     errors.push('A senha deve ter ao menos 8 caracteres, uma letra e um número.');
@@ -543,6 +629,7 @@ app.post('/cadastro', (req, res) => {
   if (db.prepare('SELECT 1 FROM users WHERE email = ?').get(email)) errors.push('Já existe uma conta com este e-mail.');
   if (accountType === 'COMPANY') {
     if (companyName.length < 3 || companyName.length > 150) errors.push('Informe o nome da empresa ou órgão.');
+    if (respectfulTextError(companyName)) errors.push(respectfulTextError(companyName));
     if (!db.prepare('SELECT 1 FROM municipalities WHERE id = ?').get(municipalityId)) errors.push('Selecione o município da entidade.');
     if (contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) errors.push('Informe um e-mail público válido.');
     if (whatsapp && (whatsapp.length < 10 || whatsapp.length > 15)) errors.push('Informe o WhatsApp com DDD e código do país.');
@@ -558,17 +645,39 @@ app.post('/cadastro', (req, res) => {
       `).run(name, email, bcrypt.hashSync(password, 12), accountType);
       const id = Number(result.lastInsertRowid);
       if (accountType === 'COMPANY') {
-        const companyResult = db.prepare(`
-          INSERT INTO companies
-            (name, slug, municipality_id, email, whatsapp, description)
-          VALUES (?, ?, ?, ?, ?, ?)
-        `).run(
-          companyName, uniqueCompanySlug(companyName), municipalityId,
-          contactEmail || null, whatsapp || null,
-          'Entidade cadastrada por seu representante na plataforma.'
+        let companyResult = db.prepare(`
+          SELECT id FROM companies
+          WHERE name = ? COLLATE NOCASE
+            AND municipality_id = ?
+            AND description = ?
+        `).get(
+          companyName, municipalityId,
+          'Entidade informada em um relato e aguardando confirmação de representante.'
         );
+        if (companyResult) {
+          db.prepare(`
+            UPDATE companies
+            SET name = ?, email = ?, whatsapp = ?, description = ?
+            WHERE id = ?
+          `).run(
+            companyName, contactEmail || null, whatsapp || null,
+            'Entidade cadastrada por seu representante na plataforma.',
+            companyResult.id
+          );
+        } else {
+          companyResult = db.prepare(`
+            INSERT INTO companies
+              (name, slug, municipality_id, email, whatsapp, description)
+            VALUES (?, ?, ?, ?, ?, ?)
+          `).run(
+            companyName, uniqueCompanySlug(companyName), municipalityId,
+            contactEmail || null, whatsapp || null,
+            'Entidade cadastrada por seu representante na plataforma.'
+          );
+          companyResult = { id: Number(companyResult.lastInsertRowid) };
+        }
         db.prepare('INSERT INTO company_members (user_id, company_id) VALUES (?, ?)')
-          .run(id, Number(companyResult.lastInsertRowid));
+          .run(id, companyResult.id);
       }
       return id;
     })();
